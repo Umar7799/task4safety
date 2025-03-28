@@ -45,11 +45,21 @@ app.use(express.json());
 
 // ✅ Pool Configuration for PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, 
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false, // Required for Render
   },
 });
+// ✅ Check Database Connection on Startup
+pool.connect()
+  .then(client => {
+    console.log("✅ Connected to PostgreSQL database");
+    client.release();
+  })
+  .catch(err => {
+    console.error("❌ Database connection error:", err);
+  });
+
 module.exports = pool;
 
 // ✅ Middleware for JWT Authentication
