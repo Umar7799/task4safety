@@ -43,27 +43,14 @@ app.options("*", cors()); // This will handle preflight OPTIONS requests
 
 app.use(express.json());
 
-console.log("✅ DATABASE_URL:", process.env.DATABASE_URL);
-
-
 // ✅ Pool Configuration for PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Required for Render
-  },
+  user: process.env.DB_USER || "postgres",
+  host: process.env.DB_HOST || "localhost",
+  database: process.env.DB_NAME || "user_management",
+  password: process.env.DB_PASSWORD || "your_password",
+  port: process.env.DB_PORT || 5432,
 });
-// ✅ Check Database Connection on Startup
-pool.connect()
-  .then(client => {
-    console.log("✅ Connected to PostgreSQL database");
-    client.release();
-  })
-  .catch(err => {
-    console.error("❌ Database connection error:", err);
-  });
-
-module.exports = pool;
 
 // ✅ Middleware for JWT Authentication
 const authenticateToken = (req, res, next) => {
