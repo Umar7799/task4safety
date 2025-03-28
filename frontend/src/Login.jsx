@@ -9,7 +9,7 @@ const Login = ({ onLogin, onShowRegister }) => {
     setErrorMessage(""); // Reset error message before attempting login
 
     try {
-      const response = await fetch("http://localhost:5000/api/login", {
+      const response = await fetch("https://task4safety.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

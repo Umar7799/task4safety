@@ -3,9 +3,11 @@ import io from "socket.io-client";
 import Login from "./Login";
 import Register from "./Register";
 
-const socket = io("http://localhost:5000", {
+const BACKEND_URL = "https://task4safety.onrender.com"; // ✅ Updated backend URL
+
+const socket = io(BACKEND_URL, {
   withCredentials: true, // If using cookies
-  transports: ['websocket', 'polling'], // Ensure the transport method is compatible
+  transports: ["websocket", "polling"], // Ensure the transport method is compatible
 });
 
 const UserTable = () => {
@@ -17,7 +19,6 @@ const UserTable = () => {
   const [token, setToken] = useState(localStorage.getItem("token"));
 
   useEffect(() => {
-    // Set token on mount (initial load)
     const storedToken = localStorage.getItem("token");
     setToken(storedToken);
 
@@ -28,7 +29,6 @@ const UserTable = () => {
       setIsLoggedIn(false);
     }
 
-    // Setup socket listener
     if (isLoggedIn && storedToken) {
       socket.on("usersUpdated", (updatedUsers) => {
         setUsers(updatedUsers);
@@ -47,7 +47,7 @@ const UserTable = () => {
         return;
       }
 
-      const response = await fetch("http://localhost:5000/api/users", {
+      const response = await fetch(`${BACKEND_URL}/api/users`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${storedToken}`,
@@ -70,8 +70,7 @@ const UserTable = () => {
       setErrorMessage("Session expired. Please log in again.");
       setIsLoggedIn(false);
       localStorage.removeItem("token");
-      console.log(error)
-
+      console.log(error);
     }
   };
 
@@ -80,21 +79,21 @@ const UserTable = () => {
     setIsLoggedIn(false);
     setShowRegister(false);
     setErrorMessage("");
-    setToken(null);  // Clear the token state
+    setToken(null);
   };
 
   const handleAction = async (action) => {
-    if (selectedUsers.length === 0 || !token) return;  // Check token validity
+    if (selectedUsers.length === 0 || !token) return;
 
     try {
       for (const userId of selectedUsers) {
-        let url = `http://localhost:5000/api/users/${action}/${userId}`;
+        let url = `${BACKEND_URL}/api/users/${action}/${userId}`;
         let method = "PUT";
 
         if (action === "unblock") {
-          url = `http://localhost:5000/api/users/unblock/${userId}`;
+          url = `${BACKEND_URL}/api/users/unblock/${userId}`;
         } else if (action === "delete") {
-          url = `http://localhost:5000/api/users/delete/${userId}`;
+          url = `${BACKEND_URL}/api/users/delete/${userId}`;
           method = "DELETE";
         }
 
@@ -109,7 +108,6 @@ const UserTable = () => {
         const data = await response.json();
 
         if (response.status === 403) {
-          // Check for blocked user scenario
           if (data.error === "You are blocked. Action not allowed.") {
             alert("You are blocked! Logging out...");
             localStorage.removeItem("token");
@@ -137,7 +135,6 @@ const UserTable = () => {
     }
   };
 
-
   const toggleSelection = (userId) => {
     setSelectedUsers((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -151,7 +148,7 @@ const UserTable = () => {
         <>
           <div className="pb-4 mb-4">
             <h1 className="p-2 text-5xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 drop-shadow-lg">
-              User managment app
+              User Management App
             </h1>
           </div>
           {errorMessage && <p className="text-red-500">{errorMessage}</p>}
