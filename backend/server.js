@@ -1,5 +1,5 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -13,7 +13,6 @@ const app = express();
 const server = http.createServer(app); // Needed for Socket.io
 const io = new Server(server, {
   cors: {
-    // Allow multiple origins
     origin: [
       "http://localhost:3000", // Local development (frontend)
       "http://localhost:5173", // Another local dev server, for example Vite
@@ -25,22 +24,26 @@ const io = new Server(server, {
   },
 });
 
-app.use(express.json());
-
-// ✅ CORS Middleware Configuration (fixing Authorization header)
+// ✅ CORS Middleware Configuration
 app.use(
   cors({
     origin: [
       "http://localhost:3000", // Local development (frontend)
-      "http://localhost:5174", // Another local dev server, for example Vite
+      "http://localhost:5173", // Another local dev server, for example Vite
       "https://user-managmen.netlify.app" // Production URL on Netlify
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allow the necessary HTTP methods
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allow the necessary HTTP methods
     allowedHeaders: ["Content-Type", "Authorization"], // Ensure Authorization header is allowed
     credentials: true, // Allow credentials such as cookies to be sent
   })
 );
 
+// ✅ Handle Preflight OPTIONS Requests
+app.options("*", cors()); // This will handle preflight OPTIONS requests
+
+app.use(express.json());
+
+// ✅ Pool Configuration for PostgreSQL
 const pool = new Pool({
   user: process.env.DB_USER || "postgres",
   host: process.env.DB_HOST || "localhost",
@@ -199,8 +202,7 @@ app.delete("/api/users/delete/:id", authenticateToken, checkIfBlocked, async (re
 });
 
 // ✅ Start Server with WebSockets
-const PORT = process.env.PORT || 5000; // Access port from .env or default to 5000
-console.log('Server will run on port:', process.env.PORT);  // Debugging the port
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
