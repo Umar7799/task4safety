@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import io from "socket.io-client";
 import Login from "./Login";
 import Register from "./Register";
 
-const BACKEND_URL = "https://task4safety.onrender.com"; // ✅ Updated backend URL
+const BACKEND_URL = "https://task4safety.onrender.com";
 
 const socket = io(BACKEND_URL, {
-  withCredentials: true, // If using cookies
-  transports: ["websocket", "polling"], // Ensure the transport method is compatible
+  withCredentials: true,
+  transports: ["websocket", "polling"],
 });
 
 const UserTable = () => {
@@ -18,35 +18,8 @@ const UserTable = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [token, setToken] = useState(localStorage.getItem("token"));
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    setToken(storedToken);
-
-    if (storedToken) {
-      setIsLoggedIn(true);
-      fetchUsers(storedToken);
-    } else {
-      setIsLoggedIn(false);
-    }
-
-    if (isLoggedIn && storedToken) {
-      socket.on("usersUpdated", (updatedUsers) => {
-        setUsers(updatedUsers);
-      });
-    }
-
-    return () => {
-      socket.off("usersUpdated");
-    };
-  }, [isLoggedIn]);
-
-  const fetchUsers = async (storedToken) => {
+  const fetchUsers = useCallback(async (storedToken) => {
     try {
-      if (!storedToken) {
-        setIsLoggedIn(false);
-        return;
-      }
-
       const response = await fetch(`${BACKEND_URL}/api/users`, {
         headers: {
           "Content-Type": "application/json",
@@ -58,21 +31,47 @@ const UserTable = () => {
       if (!response.ok) {
         if (response.status === 403) {
           setErrorMessage("You have been blocked. Please contact an administrator.");
-          localStorage.removeItem("token");
-          setIsLoggedIn(false);
+          handleLogout();
         } else {
-          throw new Error(data.error || "Unauthorized. Please log in again.");
+          console.error(data.error || "Unauthorized. Please log in again.");
         }
       } else {
         setUsers(data.users);
       }
-    } catch (error) {
+    } catch (err) {
       setErrorMessage("Session expired. Please log in again.");
-      setIsLoggedIn(false);
-      localStorage.removeItem("token");
-      console.log(error);
+      handleLogout();
+      console.error(err); // ✅ Fix: Log the error to avoid "no-unused-vars"
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      setToken(storedToken);
+      setIsLoggedIn(true);
+      fetchUsers(storedToken);
+    } else {
+      setIsLoggedIn(false);
+    }
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const handleUserUpdate = (updatedUsers) => {
+      setUsers(updatedUsers);
+
+      const currentUser = updatedUsers.find((user) => user.id === getUserIdFromToken(token));
+      if (currentUser?.status === "blocked") {
+        alert("You have been blocked! Logging out...");
+        handleLogout();
+      }
+    };
+
+    socket.on("usersUpdated", handleUserUpdate);
+    return () => socket.off("usersUpdated", handleUserUpdate);
+  }, [token]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -90,9 +89,7 @@ const UserTable = () => {
         let url = `${BACKEND_URL}/api/users/${action}/${userId}`;
         let method = "PUT";
 
-        if (action === "unblock") {
-          url = `${BACKEND_URL}/api/users/unblock/${userId}`;
-        } else if (action === "delete") {
+        if (action === "delete") {
           url = `${BACKEND_URL}/api/users/delete/${userId}`;
           method = "DELETE";
         }
@@ -107,31 +104,19 @@ const UserTable = () => {
 
         const data = await response.json();
 
-        if (response.status === 403) {
-          if (data.error === "You are blocked. Action not allowed.") {
-            alert("You are blocked! Logging out...");
-            localStorage.removeItem("token");
-            setIsLoggedIn(false);
-            return;
-          } else if (data.error === "Invalid token") {
-            alert("Session expired or invalid. Logging out...");
-            localStorage.removeItem("token");
-            setIsLoggedIn(false);
+        if (!response.ok) {
+          if (response.status === 403) {
+            alert(data.error);
+            handleLogout();
             return;
           } else {
-            alert(`Action failed: ${data.error}`);
+            console.error(`Error performing ${action} on user ${userId}:`, data.error);
           }
         }
-
-        if (!response.ok) {
-          console.error(`Error performing ${action} on user ${userId}:`, data.error);
-          continue;
-        }
       }
-
       setSelectedUsers([]);
-    } catch (error) {
-      console.error(`Error performing ${action}:`, error);
+    } catch (err) {
+      console.error(`Error performing ${action}:`, err); // ✅ Fix: Log the error to avoid "no-unused-vars"
     }
   };
 
@@ -140,7 +125,16 @@ const UserTable = () => {
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
   };
-  const isAllSelected = selectedUsers.length === users.length;
+
+  const getUserIdFromToken = (token) => {
+    try {
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      return decoded.id;
+    } catch (err) {
+      console.error("Failed to decode token:", err); // ✅ Fix: Log the error
+      return null;
+    }
+  };
 
   return (
     <div className="p-4">
@@ -188,9 +182,9 @@ const UserTable = () => {
                   <th className="p-2">
                     <input
                       type="checkbox"
-                      checked={isAllSelected}
+                      checked={selectedUsers.length === users.length}
                       onChange={() =>
-                        setSelectedUsers(isAllSelected ? [] : users.map((user) => user.id))
+                        setSelectedUsers(selectedUsers.length === users.length ? [] : users.map((u) => u.id))
                       }
                     />
                   </th>
@@ -221,21 +215,9 @@ const UserTable = () => {
           </div>
         </>
       ) : showRegister ? (
-        <Register
-          onLogin={() => {
-            setIsLoggedIn(true);
-            setShowRegister(false);
-            setErrorMessage("");
-          }}
-        />
+        <Register onLogin={() => fetchUsers(localStorage.getItem("token"))} />
       ) : (
-        <Login
-          onLogin={() => {
-            setIsLoggedIn(true);
-            setErrorMessage("");
-          }}
-          onShowRegister={() => setShowRegister(true)}
-        />
+        <Login onLogin={() => fetchUsers(localStorage.getItem("token"))} />
       )}
     </div>
   );
