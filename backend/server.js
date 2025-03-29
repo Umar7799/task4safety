@@ -175,6 +175,24 @@ app.put("/api/users/unblock/:id", authenticateToken, checkIfBlocked, async (req,
   }
 });
 
+
+// ✅ Delete User
+app.delete("/api/users/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING *", [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: "User not found." });
+
+    io.emit("usersUpdated");
+    res.json({ message: "User deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Could not delete user." });
+  }
+});
+
+
 // ✅ Start Server after DB Connection Test
 const PORT = process.env.PORT || 5000;
 pool.connect()
