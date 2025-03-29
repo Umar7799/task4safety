@@ -60,7 +60,7 @@ const UserTable = () => {
     if (!token) return;
 
     const handleUserUpdate = () => {
-      fetchUsers(token); // 🔄 Fetch fresh data when WebSocket event fires
+      fetchUsers(token);
     };
 
     socket.on("usersUpdated", handleUserUpdate);
@@ -70,7 +70,7 @@ const UserTable = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     setIsLoggedIn(false);
-    setShowRegister(false);
+    setShowRegister(false); // ✅ Now users can access the register page after logout
     setErrorMessage("");
     setToken(null);
   };
@@ -108,9 +108,9 @@ const UserTable = () => {
           }
         }
       }
-      
+
       setSelectedUsers([]);
-      socket.emit("usersUpdated"); // 🔄 Emit event to notify others of updates
+      socket.emit("usersUpdated"); // 🔄 Notify other clients of the update
     } catch (err) {
       console.error(`Error performing ${action}:`, err);
     }
@@ -121,7 +121,6 @@ const UserTable = () => {
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
   };
-
 
   return (
     <div className="p-4">
@@ -204,7 +203,12 @@ const UserTable = () => {
       ) : showRegister ? (
         <Register onLogin={() => fetchUsers(localStorage.getItem("token"))} />
       ) : (
-        <Login onLogin={() => fetchUsers(localStorage.getItem("token"))} />
+        <>
+          <Login onLogin={() => fetchUsers(localStorage.getItem("token"))} />
+          <p className="mt-2 text-blue-600 cursor-pointer" onClick={() => setShowRegister(true)}>
+            Don't have an account? Register here.
+          </p>
+        </>
       )}
     </div>
   );
