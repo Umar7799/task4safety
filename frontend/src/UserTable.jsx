@@ -90,7 +90,7 @@ const UserTable = () => {
         let method = "PUT";
 
         if (action === "delete") {
-          url = `${BACKEND_URL}/api/users/delete/${userId}`;
+          url = `${BACKEND_URL}/api/users/${userId}`;
           method = "DELETE";
         }
 
