@@ -70,7 +70,7 @@ const UserTable = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     setIsLoggedIn(false);
-    setShowRegister(false); // ✅ Now users can access the register page after logout
+    setShowRegister(true); // ✅ Now users can access the register page after logout
     setErrorMessage("");
     setToken(null);
   };
