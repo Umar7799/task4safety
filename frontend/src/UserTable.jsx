@@ -41,7 +41,7 @@ const UserTable = () => {
     } catch (err) {
       setErrorMessage("Session expired. Please log in again.");
       handleLogout();
-      console.error(err); // ✅ Fix: Log the error to avoid "no-unused-vars"
+      console.error(err);
     }
   }, []);
 
@@ -59,19 +59,13 @@ const UserTable = () => {
   useEffect(() => {
     if (!token) return;
 
-    const handleUserUpdate = (updatedUsers) => {
-      setUsers(updatedUsers);
-
-      const currentUser = updatedUsers.find((user) => user.id === getUserIdFromToken(token));
-      if (currentUser?.status === "blocked") {
-        alert("You have been blocked! Logging out...");
-        handleLogout();
-      }
+    const handleUserUpdate = () => {
+      fetchUsers(token); // 🔄 Fetch fresh data when WebSocket event fires
     };
 
     socket.on("usersUpdated", handleUserUpdate);
     return () => socket.off("usersUpdated", handleUserUpdate);
-  }, [token]);
+  }, [token, fetchUsers]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -114,9 +108,11 @@ const UserTable = () => {
           }
         }
       }
+      
       setSelectedUsers([]);
+      socket.emit("usersUpdated"); // 🔄 Emit event to notify others of updates
     } catch (err) {
-      console.error(`Error performing ${action}:`, err); // ✅ Fix: Log the error to avoid "no-unused-vars"
+      console.error(`Error performing ${action}:`, err);
     }
   };
 
@@ -126,15 +122,6 @@ const UserTable = () => {
     );
   };
 
-  const getUserIdFromToken = (token) => {
-    try {
-      const decoded = JSON.parse(atob(token.split(".")[1]));
-      return decoded.id;
-    } catch (err) {
-      console.error("Failed to decode token:", err); // ✅ Fix: Log the error
-      return null;
-    }
-  };
 
   return (
     <div className="p-4">
